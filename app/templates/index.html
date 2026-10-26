@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure Admin & Operations Portal</title>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <div class="brand-icon">
+                    <i class="fa-brands fa-microsoft"></i>
+                </div>
+                <div class="brand-text">
+                    <h2>Azure Portal</h2>
+                    <span>Cloud Admin Suite</span>
+                </div>
+            </div>
+
+            <div class="connection-pill" id="sidebarModeBadge">
+                <span class="status-dot online"></span>
+                <span class="mode-label" id="currentModeLabel">Demo / Sandbox</span>
+            </div>
+
+            <nav class="sidebar-nav">
+                <div class="nav-section-title">MANAGEMENT</div>
+                <a href="#overview" class="nav-item active" data-tab="overview">
+                    <i class="fa-solid fa-gauge-high"></i>
+                    <span>Overview</span>
+                </a>
+                <a href="#vms" class="nav-item" data-tab="vms">
+                    <i class="fa-solid fa-server"></i>
+                    <span>Virtual Machines</span>
+                    <span class="badge-counter" id="vmCountBadge">0</span>
+                </a>
+                <a href="#rgs" class="nav-item" data-tab="rgs">
+                    <i class="fa-solid fa-layer-group"></i>
+                    <span>Resource Groups</span>
+                </a>
+                <a href="#storage" class="nav-item" data-tab="storage">
+                    <i class="fa-solid fa-database"></i>
+                    <span>Storage Accounts</span>
+                </a>
+
+                <div class="nav-section-title">GOVERNANCE & FINOPS</div>
+                <a href="#costs" class="nav-item" data-tab="costs">
+                    <i class="fa-solid fa-chart-line"></i>
+                    <span>Cost Management</span>
+                </a>
+                <a href="#rbac" class="nav-item" data-tab="rbac">
+                    <i class="fa-solid fa-shield-halved"></i>
+                    <span>RBAC & Security</span>
+                </a>
+                <a href="#activities" class="nav-item" data-tab="activities">
+                    <i class="fa-solid fa-list-check"></i>
+                    <span>Activity Audit</span>
+                </a>
+
+                <div class="nav-section-title">CONFIGURATION</div>
+                <a href="#settings" class="nav-item" data-tab="settings">
+                    <i class="fa-solid fa-sliders"></i>
+                    <span>Settings & Connect</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="sub-info">
+                    <span class="sub-label">Subscription</span>
+                    <span class="sub-id" id="footerSubName">Production-Enterprise</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Top Navbar -->
+            <header class="topbar">
+                <div class="topbar-left">
+                    <h1 id="pageTitle">Overview & Telemetry</h1>
+                    <span class="page-subtitle" id="pageSubtitle">Real-time resource health & Azure operations</span>
+                </div>
+
+                <div class="topbar-right">
+                    <button class="btn btn-secondary btn-sm" id="btnRefresh" title="Refresh data">
+                        <i class="fa-solid fa-arrows-rotate"></i> Refresh
+                    </button>
+                    <button class="btn btn-primary btn-sm" id="btnOpenCreateRgModal">
+                        <i class="fa-solid fa-plus"></i> New Resource Group
+                    </button>
+                    <div class="profile-chip">
+                        <i class="fa-solid fa-circle-user"></i>
+                        <span>Admin</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Notification Toast Container -->
+            <div id="toastContainer" class="toast-container"></div>
+
+            <!-- Page Sections -->
+            <div class="content-body">
+                
+                <!-- SECTION: Overview -->
+                <section id="section-overview" class="view-section active">
+                    <!-- KPI Cards Grid -->
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon icon-blue">
+                                <i class="fa-solid fa-server"></i>
+                            </div>
+                            <div class="stat-content">
+                                <span class="stat-title">Virtual Machines</span>
+                                <div class="stat-value" id="kpiTotalVms">-</div>
+                                <div class="stat-subtext">
+                                    <span class="text-success" id="kpiRunningVms">0 Running</span> · 
+                                    <span class="text-warning" id="kpiStoppedVms">0 Stopped</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-icon icon-purple">
+                                <i class="fa-solid fa-layer-group"></i>
+                            </div>
+                            <div class="stat-content">
+                                <span class="stat-title">Resource Groups</span>
+                                <div class="stat-value" id="kpiTotalRgs">-</div>
+                                <div class="stat-subtext">Across multi-region deployments</div>
+                            </div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-icon icon-cyan">
+                                <i class="fa-solid fa-database"></i>
+                            </div>
+                            <div class="stat-content">
+                                <span class="stat-title">Storage Accounts</span>
+                                <div class="stat-value" id="kpiTotalStorage">-</div>
+                                <div class="stat-subtext">Blob, File, Data Lake Gen2</div>
+                            </div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-icon icon-emerald">
+                                <i class="fa-solid fa-sack-dollar"></i>
+                            </div>
+                            <div class="stat-content">
+                                <span class="stat-title">Monthly Spending</span>
+                                <div class="stat-value" id="kpiMonthlyCost">$0.00</div>
+                                <div class="stat-subtext text-success" id="kpiBudgetStatus">Within Budget</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts Grid -->
+                    <div class="charts-grid">
+                        <div class="card chart-card">
+                            <div class="card-header">
+                                <h3><i class="fa-solid fa-chart-area"></i> Monthly Azure Spending Trend</h3>
+                                <span class="badge badge-info">USD</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="chart-wrapper">
+                                    <canvas id="costTrendChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card chart-card">
+                            <div class="card-header">
+                                <h3><i class="fa-solid fa-chart-pie"></i> Cost by Service Category</h3>
+                                <span class="badge badge-primary">Current Month</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="chart-wrapper">
+                                    <canvas id="costServiceChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Activity Section -->
+                    <div class="card mt-4">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-clock-rotate-left"></i> Recent Activity Log</h3>
+                            <button class="btn btn-outline btn-sm" onclick="navigateTo('activities')">View All</button>
+                        </div>
+                        <div class="card-body table-responsive">
+                            <table class="table" id="overviewActivityTable">
+                                <thead>
+                                    <tr>
+                                        <th>Timestamp</th>
+                                        <th>Caller</th>
+                                        <th>Action / Operation</th>
+                                        <th>Resource</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td colspan="5" class="text-center py-4">Loading activities...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECTION: Virtual Machines -->
+                <section id="section-vms" class="view-section">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="filter-group">
+                                <h3><i class="fa-solid fa-server"></i> Virtual Machines Inventory</h3>
+                                <input type="text" id="vmSearchInput" class="input-search" placeholder="Search VMs by name or RG...">
+                            </div>
+                            <div class="header-actions">
+                                <select id="vmStateFilter" class="select-filter">
+                                    <option value="ALL">All States</option>
+                                    <option value="RUNNING">Running Only</option>
+                                    <option value="STOPPED">Stopped Only</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="card-body table-responsive">
+                            <table class="table" id="vmsTable">
+                                <thead>
+                                    <tr>
+                                        <th>VM Name</th>
+                                        <th>Resource Group</th>
+                                        <th>Location</th>
+                                        <th>Size (vCPU / RAM)</th>
+                                        <th>OS Type</th>
+                                        <th>Power State</th>
+                                        <th>IP Addresses</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td colspan="8" class="text-center py-4">Loading virtual machines...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECTION: Resource Groups -->
+                <section id="section-rgs" class="view-section">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-layer-group"></i> Resource Groups</h3>
+                            <button class="btn btn-primary btn-sm" onclick="openCreateRgModal()">
+                                <i class="fa-solid fa-plus"></i> Create Resource Group
+                            </button>
+                        </div>
+                        <div class="card-body table-responsive">
+                            <table class="table" id="rgsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Resource Group Name</th>
+                                        <th>Location</th>
+                                        <th>Status</th>
+                                        <th>Resources</th>
+                                        <th>Tags</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td colspan="5" class="text-center py-4">Loading resource groups...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECTION: Storage Accounts -->
+                <section id="section-storage" class="view-section">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-database"></i> Storage Accounts</h3>
+                        </div>
+                        <div class="card-body table-responsive">
+                            <table class="table" id="storageTable">
+                                <thead>
+                                    <tr>
+                                        <th>Account Name</th>
+                                        <th>Resource Group</th>
+                                        <th>Location</th>
+                                        <th>SKU / Replication</th>
+                                        <th>Access Tier</th>
+                                        <th>Primary Blob Endpoint</th>
+                                        <th>HTTPS Only</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td colspan="7" class="text-center py-4">Loading storage accounts...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECTION: Cost Management -->
+                <section id="section-costs" class="view-section">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-content">
+                                <span class="stat-title">Month-To-Date Cost</span>
+                                <div class="stat-value text-primary" id="costMtdValue">$0.00</div>
+                                <div class="stat-subtext">Current Billing Cycle</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-content">
+                                <span class="stat-title">Forecasted Month-End</span>
+                                <div class="stat-value" id="costForecastValue">$0.00</div>
+                                <div class="stat-subtext">Based on current usage rates</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-content">
+                                <span class="stat-title">Monthly Budget Limit</span>
+                                <div class="stat-value text-success" id="costBudgetValue">$0.00</div>
+                                <div class="stat-subtext">Hard cap alert threshold</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cost Optimization Recommendations -->
+                    <div class="card mt-4">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-lightbulb"></i> FinOps Optimization Recommendations</h3>
+                            <span class="badge badge-warning" id="savingsBadge">$0 Potential Savings</span>
+                        </div>
+                        <div class="card-body">
+                            <div id="costRecommendationsContainer" class="recommendations-list">
+                                <!-- Populated dynamically -->
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECTION: RBAC & Security -->
+                <section id="section-rbac" class="view-section">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-user-shield"></i> Subscription Role Assignments (RBAC)</h3>
+                        </div>
+                        <div class="card-body table-responsive">
+                            <table class="table" id="rbacTable">
+                                <thead>
+                                    <tr>
+                                        <th>Principal / Identity</th>
+                                        <th>Identity Type</th>
+                                        <th>Assigned Role</th>
+                                        <th>Scope</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td colspan="4" class="text-center py-4">Loading RBAC assignments...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="card mt-4">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-shield-halved"></i> Cloud Security Governance Checklist</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="security-grid">
+                                <div class="security-item pass">
+                                    <i class="fa-solid fa-circle-check"></i>
+                                    <div>
+                                        <strong>HTTPS Enforcement on Storage</strong>
+                                        <p>Secure transfer required on all blob storage accounts</p>
+                                    </div>
+                                </div>
+                                <div class="security-item pass">
+                                    <i class="fa-solid fa-circle-check"></i>
+                                    <div>
+                                        <strong>RBAC Least Privilege</strong>
+                                        <p>No excessive global Owner privileges on resource groups</p>
+                                    </div>
+                                </div>
+                                <div class="security-item warning">
+                                    <i class="fa-solid fa-triangle-exclamation"></i>
+                                    <div>
+                                        <strong>Public IP Auditing</strong>
+                                        <p>1 VM has an internet-exposed public IP. Ensure NSG rules are restricted.</p>
+                                    </div>
+                                </div>
+                                <div class="security-item pass">
+                                    <i class="fa-solid fa-circle-check"></i>
+                                    <div>
+                                        <strong>Activity Logging</strong>
+                                        <p>Administrative actions are tracked in Azure Activity Log</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECTION: Activity Log -->
+                <section id="section-activities" class="view-section">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-list-check"></i> Operations Audit Trail</h3>
+                        </div>
+                        <div class="card-body table-responsive">
+                            <table class="table" id="fullActivityTable">
+                                <thead>
+                                    <tr>
+                                        <th>Timestamp</th>
+                                        <th>Caller</th>
+                                        <th>Action</th>
+                                        <th>Target Resource</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td colspan="5" class="text-center py-4">Loading activity history...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECTION: Settings & Connection -->
+                <section id="section-settings" class="view-section">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-link"></i> Azure Connection & Environment</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="settings-box">
+                                <div class="setting-row">
+                                    <div>
+                                        <strong>Active Mode:</strong>
+                                        <p>Toggle between simulated Demo data and live Azure Resource Manager.</p>
+                                    </div>
+                                    <div class="toggle-control">
+                                        <button class="btn btn-outline" id="btnToggleDemoMode">Switch Mode</button>
+                                    </div>
+                                </div>
+
+                                <div class="setting-row">
+                                    <div>
+                                        <strong>Connection Test:</strong>
+                                        <p>Verify network and authentication access to Azure API endpoints.</p>
+                                    </div>
+                                    <div>
+                                        <button class="btn btn-secondary" id="btnTestConnection">
+                                            <i class="fa-solid fa-plug"></i> Test Connection
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div id="connectionResultBox" class="callout callout-info mt-3" style="display:none;"></div>
+                            </div>
+
+                            <div class="setup-guide mt-4">
+                                <h4><i class="fa-solid fa-book-open"></i> How to connect to your real Azure Subscription:</h4>
+                                <ol>
+                                    <li>Open PowerShell or Azure Cloud Shell and run:
+                                        <pre><code>az ad sp create-for-rbac --name "AzureAdminPortal-SP" --role Contributor --scopes /subscriptions/YOUR_SUBSCRIPTION_ID</code></pre>
+                                    </li>
+                                    <li>Copy <code>.env.example</code> to <code>.env</code> in your project root:
+                                        <pre><code>cp .env.example .env</code></pre>
+                                    </li>
+                                    <li>Fill in your credentials:
+                                        <pre><code>DEMO_MODE=false
+AZURE_TENANT_ID=&lt;appOwnerTenantId&gt;
+AZURE_CLIENT_ID=&lt;appId&gt;
+AZURE_CLIENT_SECRET=&lt;password&gt;
+AZURE_SUBSCRIPTION_ID=&lt;subscription_id&gt;</code></pre>
+                                    </li>
+                                    <li>Restart the portal or click <strong>Test Connection</strong>.</li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Create Resource Group Modal -->
+    <div id="createRgModal" class="modal-backdrop" style="display: none;">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h3>Create New Azure Resource Group</h3>
+                <button class="btn-close" onclick="closeCreateRgModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="createRgForm">
+                    <div class="form-group">
+                        <label for="rgNameInput">Resource Group Name <span class="text-danger">*</span></label>
+                        <input type="text" id="rgNameInput" class="form-control" placeholder="e.g. rg-production-services" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="rgLocationSelect">Azure Region <span class="text-danger">*</span></label>
+                        <select id="rgLocationSelect" class="form-control">
+                            <option value="eastus">East US (Virginia)</option>
+                            <option value="eastus2">East US 2 (Virginia)</option>
+                            <option value="westus2">West US 2 (Washington)</option>
+                            <option value="centralus">Central US (Iowa)</option>
+                            <option value="westeurope">West Europe (Netherlands)</option>
+                            <option value="northeurope">North Europe (Ireland)</option>
+                            <option value="southeastasia">Southeast Asia (Singapore)</option>
+                            <option value="centralindia">Central India (Pune)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="rgEnvTagInput">Environment Tag</label>
+                        <input type="text" id="rgEnvTagInput" class="form-control" placeholder="Production / Staging / Development" value="Production">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeCreateRgModal()">Cancel</button>
+                <button class="btn btn-primary" id="btnSubmitCreateRg">Create Resource Group</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom JavaScript -->
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
