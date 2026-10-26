@@ -7,7 +7,8 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from pydantic import BaseModel, Field
 
 from app.config import settings
@@ -76,8 +77,14 @@ class CreateResourceGroupRequest(BaseModel):
 class ToggleModeRequest(BaseModel):
     demo_mode: bool
 
-# --- Frontend HTML Endpoint ---
+# --- Frontend HTML Endpoints ---
 @app.get("/")
+@app.get("/api")
+@app.get("/api/")
+@app.get("/api/index")
+@app.get("/api/index.py")
+@app.get("/index")
+@app.get("/index.html")
 async def render_dashboard(request: Request):
     """Render the single-page admin dashboard."""
     try:
@@ -94,9 +101,21 @@ async def render_dashboard(request: Request):
                 return HTMLResponse(content=html_path.read_text(encoding="utf-8"))
         return HTMLResponse("<h2>Azure Admin Portal</h2><p>Dashboard loaded in serverless mode.</p>")
 
+# Global 404 Exception Handler for SPA fallback
+@app.exception_handler(StarletteHTTPException)
+async def custom_http_exception_handler(request: Request, exc: StarletteHTTPException):
+    if exc.status_code == 404:
+        p = request.url.path
+        # Return JSON 404 only for explicit missing API sub-routes
+        if p.startswith("/api/") and p not in ("/api/index", "/api/index.py", "/api/"):
+            return JSONResponse({"detail": "Not Found", "path": p}, status_code=404)
+        # For any browser navigation, render the dashboard
+        return await render_dashboard(request)
+    return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
 
-# --- REST API Endpoints ---
+# --- REST API Endpoints (Supported with and without /api prefix) ---
 @app.get("/api/status")
+@app.get("/status")
 async def get_system_status():
     """Return Azure connection status, subscription, and active mode."""
     conn_info = test_azure_connection()
@@ -112,6 +131,7 @@ async def get_system_status():
     }
 
 @app.get("/api/summary")
+@app.get("/summary")
 async def get_portal_summary():
     """Return top-level KPIs and telemetry across all Azure services."""
     vms = compute_service.list_virtual_machines()
@@ -139,12 +159,14 @@ async def get_portal_summary():
     }
 
 @app.get("/api/vms")
+@app.get("/vms")
 async def get_virtual_machines():
     """List virtual machines with their live status and details."""
     vms = compute_service.list_virtual_machines()
     return {"count": len(vms), "vms": vms}
 
 @app.post("/api/vms/{resource_group}/{vm_name}/{action}")
+@app.post("/vms/{resource_group}/{vm_name}/{action}")
 async def trigger_vm_action(resource_group: str, vm_name: str, action: str):
     """Trigger start, stop, restart, or deallocate on a VM."""
     result = compute_service.perform_vm_action(resource_group, vm_name, action)
@@ -153,12 +175,14 @@ async def trigger_vm_action(resource_group: str, vm_name: str, action: str):
     return result
 
 @app.get("/api/resource-groups")
+@app.get("/resource-groups")
 async def get_resource_groups():
     """List all resource groups."""
     rgs = resource_service.list_resource_groups()
     return {"count": len(rgs), "resource_groups": rgs}
 
 @app.post("/api/resource-groups")
+@app.post("/resource-groups")
 async def create_new_resource_group(payload: CreateResourceGroupRequest):
     """Create a new Azure Resource Group."""
     result = resource_service.create_resource_group(payload.name, payload.location, payload.tags)
@@ -167,29 +191,34 @@ async def create_new_resource_group(payload: CreateResourceGroupRequest):
     return result
 
 @app.get("/api/storage")
+@app.get("/storage")
 async def get_storage_accounts():
     """List all storage accounts."""
     storage = storage_service.list_storage_accounts()
     return {"count": len(storage), "storage_accounts": storage}
 
 @app.get("/api/costs")
+@app.get("/costs")
 async def get_costs():
     """Return FinOps cost trends, breakdowns, and optimization recommendations."""
     costs = cost_service.get_cost_summary()
     return costs
 
 @app.get("/api/rbac")
+@app.get("/rbac")
 async def get_rbac_assignments():
     """List RBAC assignments."""
     assignments = rbac_service.list_role_assignments()
     return {"count": len(assignments), "role_assignments": assignments}
 
 @app.get("/api/activities")
+@app.get("/activities")
 async def get_activities():
     """List recent operations and activity audit trail."""
     return {"activities": MOCK_ACTIVITY_LOG}
 
 @app.post("/api/mode/toggle")
+@app.post("/mode/toggle")
 async def toggle_demo_mode(payload: ToggleModeRequest):
     """Toggle between Demo/Simulation and Live Azure Mode."""
     settings.DEMO_MODE = payload.demo_mode
