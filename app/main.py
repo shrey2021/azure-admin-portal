@@ -7,6 +7,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
 from app.config import settings
@@ -37,9 +38,34 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Static and Templates
-app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
-templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+# Robust directory resolution for local, serverless & container environments
+possible_dirs = [
+    BASE_DIR,
+    Path.cwd() / "app",
+    Path.cwd(),
+    Path("/var/task/app"),
+    Path("/var/task")
+]
+
+static_dir = None
+template_dir = None
+
+for d in possible_dirs:
+    if (d / "static").is_dir() and static_dir is None:
+        static_dir = d / "static"
+    if (d / "templates").is_dir() and template_dir is None:
+        template_dir = d / "templates"
+
+if not static_dir or not static_dir.exists():
+    static_dir = BASE_DIR / "static"
+    static_dir.mkdir(parents=True, exist_ok=True)
+
+if not template_dir or not template_dir.exists():
+    template_dir = BASE_DIR / "templates"
+    template_dir.mkdir(parents=True, exist_ok=True)
+
+app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+templates = Jinja2Templates(directory=str(template_dir))
 
 # --- Pydantic Models ---
 class CreateResourceGroupRequest(BaseModel):
@@ -54,11 +80,20 @@ class ToggleModeRequest(BaseModel):
 @app.get("/")
 async def render_dashboard(request: Request):
     """Render the single-page admin dashboard."""
-    return templates.TemplateResponse("index.html", {
-        "request": request,
-        "app_title": "Azure Admin Portal",
-        "demo_mode": settings.effective_demo_mode
-    })
+    try:
+        return templates.TemplateResponse("index.html", {
+            "request": request,
+            "app_title": "Azure Admin Portal",
+            "demo_mode": settings.effective_demo_mode
+        })
+    except Exception:
+        # Fallback to direct file read if Jinja2 template loader has path discrepancy
+        for d in possible_dirs:
+            html_path = d / "templates" / "index.html"
+            if html_path.is_file():
+                return HTMLResponse(content=html_path.read_text(encoding="utf-8"))
+        return HTMLResponse("<h2>Azure Admin Portal</h2><p>Dashboard loaded in serverless mode.</p>")
+
 
 # --- REST API Endpoints ---
 @app.get("/api/status")
